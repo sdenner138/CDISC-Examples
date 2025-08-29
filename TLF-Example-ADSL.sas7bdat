@@ -1,0 +1,631 @@
+
+/* Define Libraries */
+libname XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX;
+
+/* Clean working directory */
+/* proc datasets lib = work kill memtype = data nowarn; */
+/* run; */
+
+/************* make dataset ********************/
+
+/***** First Chunk ****/
+*Screened;
+
+proc sql noprint;
+	create table scrn as
+		select count(distinct USUBJID) as count
+		from xxxx;
+quit;
+
+*Screen Failure;
+
+proc sql noprint;
+	create table scrnf as 
+		select count(distinct USUBJID) as count
+		from xxxx
+		where ARMCD = 'SCRNFAIL';
+quit;
+
+*Other Screened but not Randomized;
+
+proc sql noprint;
+	create table othscrn as 
+		select count(distinct USUBJID) as count
+		from adam.adsl
+		where ARMCD = 'NOTASSGN';
+quit;
+
+*join;
+data top;
+	set scrn scrnf othscrn;
+run;
+
+*Format the table;
+data first;
+	length Summary $50;
+	set scrn(in = a)
+		scrnf(in = b)
+		othscrn(in = c);
+		
+	if a then Summary = cats("Screened: ", count); 
+	else if b then Summary = cats("Screen Failure: ", count);
+	else if c then Summary = cats("Other Screened but not Randomized: ", count);
+	
+	keep Summary;
+	
+run;
+
+
+/* SUBSET DATA to only those randomized */
+data treated;
+	set adam.XXXX;
+	if RANDFL = 'Y';
+run;
+
+/* For MSAB Report - Subset dataset for random numbers */
+
+proc surveyselect data = treated out = treated
+	method = srs
+	samprate = 0.35;
+run;
+
+/**** chunk 2 dataset ****/
+
+*Randomized;
+proc freq data = treated noprint;
+	tables ARM*RANDFL/out = mc1;
+	where RANDFL = 'Y';
+run;
+
+proc transpose data = mc1 out = a(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data alab;
+	attrib Summary length = $50;
+	set a;
+	Summary = "Randomized";
+run;
+
+*Treated;
+proc freq data = treated noprint;
+	tables ARM*SAFFL/out = mc2;
+	where SAFFL = 'Y';
+run;
+
+proc transpose data = mc2 out = b(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data blab;
+	attrib Summary length = $50;
+	set b;
+	Summary = "Treated";
+run;
+
+*Not Treated;
+proc freq data = treated noprint;
+	tables ARM*SAFFL/out = mc3 ;
+	where SAFFL = 'N';
+run;
+
+proc transpose data = mc3 out = c(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data clab;
+	attrib Summary length = $50;
+	set c;
+	Summary = "Not Treated";
+	if 'TRTB'n = . then 'TRTB'n  = 0;
+run;
+*Join;
+
+data d;
+	attrib Summary length = $50;
+	set alab blab clab;
+	Total = sum(of _NUMERIC_);
+run;
+
+data second;
+	set first d;
+run;
+
+/**** Chunk 3 Dataset ****/
+
+*Safety Population;
+proc freq data = treated noprint;
+	tables ARM*SAFFL/out = c31;
+	where SAFFL = 'Y';
+run;
+
+proc transpose data = c31 out = e(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data elab;
+	attrib Summary length = $50;
+	set e;
+	Summary = "Safety Population";
+run;
+
+*ITT Population;
+proc freq data = treated noprint;
+	tables ARM*ITTFL/out = c32;
+	where ITTFL = 'Y';
+run;
+
+proc transpose data = c32 out = f(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data flab;
+	attrib Summary length = $50;
+	set f;
+	Summary = "ITT Population";
+run;
+
+*per protocol population;
+proc freq data = treated noprint;
+	tables ARM*PPROTFL/out = c33;
+	where PPROTFL = 'Y';
+run;
+
+proc transpose data = c33 out = g(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data glab;
+	attrib Summary length = $50;
+	set g;
+	Summary = "Per-Protocol Population";
+run;
+
+*Join;
+
+data h;
+	attrib Summary length = $50;
+	set elab flab glab;
+	Total = sum(of _NUMERIC_);
+run;
+
+data third;
+	set second h;
+run;
+
+/***** Chunk 4 Dataset *****/
+
+*Merge treated with ADDS.xxxx & ADDS.xxxx;
+
+*Completed Treatment Phase;
+proc freq data = treated noprint;
+	tables ARM/out = c41;
+	where EOTDCRS = "COMPLETED" and SAFFL = 'Y';
+run;
+
+proc transpose data = c41 out = aa(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data aalab;
+	attrib Summary length = $50;
+	set aa;
+	Summary = "Completed Treatment Phase";
+run;
+
+*Completed Treatment Phase & Completed Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM*ORLDCRSN/out = c42;
+	where EOTDCRS = "COMPLETED" and
+		ORLDCRSN = 1 and SAFFL = 'Y';
+run;
+
+proc transpose data = c42 out = ab(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data ablab;
+	attrib Summary length = $50;
+	set ab;
+	Summary = "Completed Safety Follow-Up";
+run;
+
+*Completed Treatment Phase & Discontinued Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM*ORLDCRSN/out = c43;
+	where EOTDCRS = "COMPLETED" and
+		ORLDCRSN = 2 and SAFFL = 'Y';
+run;
+
+proc transpose data = c43 out = ac(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data aclab;
+	attrib Summary length = $50;
+	set ac;
+	Summary = "Discontinued Safety Follow-Up";
+run;
+
+*Completed Treatment Phase & Did not enter Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM*ORLDCRSN/out = c44;
+	where EOTDCRS = "COMPLETED" and
+		ORLDCRSN = 3 and SAFFL = 'Y';
+run;
+
+proc transpose data = c44 out = ad(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+
+data adlab;
+	attrib Summary length = $50;
+	set ad;
+	Summary = "Did not enter Safety Follow-Up";
+	if 'TRTC'n = . then 'TRTC'n  = 0;
+	if 'TRTB'n = . then 'TRTB'n  = 0;
+run;
+
+*join;
+
+data j;
+	attrib Summary length = $50;
+	set aalab ablab aclab adlab;
+	Total = sum(of _NUMERIC_);
+run;
+
+data third;
+	set third j;
+run;
+
+*Discontinued Treatment Phase;
+proc freq data = treated noprint;
+	tables ARM/out = c45;
+	where EOTDCRS ne "COMPLETED" and SAFFL = 'Y';
+run;
+
+proc transpose data = c45 out = ae(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data aelab;
+	attrib Summary length = $50;
+	set ae;
+	Summary = "Discontinued Treatment Phase";
+run;
+
+*Discontinued Treatment Phase & Completed Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM/out = c46;
+	where EOTDCRS ne "COMPLETED" and SAFFL = 'Y' and ORLDCRSN = 1;
+run;
+
+proc transpose data = c46 out = af(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data aflab;
+	attrib Summary length = $50;
+	set af;
+	Summary = "Completed Safety Follow-Up";
+run;
+
+*Discontinued Treatment Phase & Discontinued Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM/out = c47;
+	where EOTDCRS ne "COMPLETED" and SAFFL = 'Y' and ORLDCRSN = 2;
+run;
+
+proc transpose data = c47 out = ag(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data aglab;
+	attrib Summary length = $50;
+	set ag;
+	Summary = "Discontinued Safety Follow-Up";
+run;
+
+*Discontinued Treatment Phase & Did not enter Safety Follow-Up;
+proc freq data = treated noprint;
+	tables ARM/out = c48;
+	where EOTDCRS ne "COMPLETED" and SAFFL = 'Y' and ORLDCRSN = 3;
+run;
+
+proc transpose data = c48 out = ah(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data ahlab;
+	attrib Summary length = $50;
+	set ah;
+	Summary = "Did not enter Safety Follow-Up";
+run;
+
+
+*join;
+
+data l;
+	set aelab aflab aglab ahlab;
+		Total = sum(of _NUMERIC_);
+run;
+
+data fourth;
+	set third l;
+run;
+
+/***** Chunk 5 Dataset *****/
+
+*Completed Study;
+proc freq data = treated noprint;
+	tables ARM*COMPLFL/out = c51;
+	where COMPLFL = "Y";
+run;
+
+proc transpose data = c51 out = ba(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data balab;
+	attrib Summary length = $50;
+	set ba;
+	Summary = "Completed Study";
+run;
+
+*Discontinued Study;
+proc freq data = treated noprint;
+	tables ARM*COMPLFL/out = c52;
+	where COMPLFL = "N" and SAFFL = 'Y';
+run;
+
+proc transpose data = c52 out = bb(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data bblab;
+	attrib Summary length = $50;
+	set bb;
+	Summary = "Discontinued Study";
+run;
+
+*Rollover to Study XXXXXXX;
+proc freq data = treated noprint;
+	tables ARM*RO1064FL/out = c53;
+	where RO1064FL = "Y" and SAFFL = 'Y';
+run;
+
+proc transpose data = c53 out = bc(drop = _name_ _label_);
+	id ARM;
+	var COUNT;
+run;
+
+data bclab;
+	attrib Summary length = $50;
+	set bc;
+	Summary = "Rollover to Study XXXX";
+run;
+
+*join;
+
+data n;
+	set balab bblab bclab;
+		Total = sum(of _NUMERIC_);
+run;
+
+data table;
+	set fourth n;
+run;
+
+
+
+
+
+
+
+
+/**** Add Percentages ****/
+
+*per the footnote, percentages of first two blocks are based on 698 while
+last two blocks are based on safety population (696). So create macro variables based
+on that;
+
+proc sql noprint;  
+   select count(distinct(USUBJID)) into: trt1tot trimmed from adam.adsl where ARM = "" and RANDFL = 'Y' ;  
+   select count(distinct(USUBJID)) into: trt2tot trimmed from adam.adsl where ARM = "TRTB" and RANDFL = 'Y';  
+   select count(distinct(USUBJID)) into: trt3tot trimmed from adam.adsl where ARM = "TRTC" and RANDFL = 'Y' ;
+      select (&trt1tot + &trt2tot + &trt3tot) into: total trimmed from adam.xxxx(obs = 1);
+   select count(distinct(USUBJID)) into: trt1saf trimmed from adam.adsl where ARM = "TRTA" and SAFFL = 'Y';
+   select count(distinct(USUBJID)) into: trt2saf trimmed from adam.adsl where ARM = "TRTB" and SAFFL = 'Y';  
+   select count(distinct(USUBJID)) into: trt3saf trimmed from adam.adsl where ARM = "TRTC" and SAFFL = 'Y' ;
+   		select (&trt1saf + &trt2saf + &trt3saf) into: saftot trimmed from adam.xxxx(obs = 1);
+
+quit;  
+
+data table_pct;
+	set table;
+	
+	/* Format: n (%) */
+	length TRTA_fmt TRT1_fmt TRT2_fmt total_fmt $20;
+	
+	*in the first two blocks, use the total randomized population;
+	if _N_ <= 9 then do;
+		denom1 = &trt1tot;
+		denom2 = &trt2tot;
+		denom3 = &trt3tot;
+		denom_tot = &total;
+	end;
+	*in the last 2 blocks, use the safety population;
+	else if 10 <= _N_ <= 20 then do;
+		denom1 = &trt1saf;
+		denom2 = &trt2saf;
+		denom3 = &trt3saf;
+		denom_tot = &saftot;
+	end;
+	
+	*calculate percentages;
+	
+	if 'TRTA'n = 0 then TRTA_fmt = "0";
+		else if 'TRTA'n = . then TRTA_fmt = "";
+		else TRTA_fmt = catt(put('TRTA'n, 3.), " (", put(100 * 'TRTA'n / denom1, 5.1), ")");
+	
+	if 'TRTB'n = 0 then TRT1_fmt = "0";
+		else if 'TRTB'n = . then TRT1_fmt = "";
+		else TRT1_fmt = catt(put('TRTB'n, 3.), " (", put(100 * 'TRTB'n / denom2, 5.1), ")");
+	
+	if 'TRTC'n = 0 then TRT2_fmt = "0";
+		else if 'TRTC'n = . then TRT2_fmt = "";
+		else TRT2_fmt = catt(put('TRTC'n, 3.), " (", put(100 * 'TRTC'n / denom3, 5.1), ")");
+
+	if 'Total'n = . then total_fmt = "";
+		else total_fmt = catt(put('Total'n, 3.), " (", put(100 * 'Total'n / denom_tot, 5.1), ")");
+
+	drop 'TRTA'n 'TRTB'n 'TRTC'n 'Total'n denom1 denom2 denom3 denom_tot;
+run;
+
+/* add Number of subjects[1] row */
+
+data table1;
+	set table_pct;
+	
+	if _N_ = 10 then do;
+		Summary = "Number of subjects[1]";
+		TRTA_fmt = "";
+		TRT1_fmt = "";
+		TRT2_fmt = "";
+		total_fmt = "";
+		output;
+	end;
+	
+	/* output the rest of the original table */
+	set table_pct;
+	output;
+run;
+
+/**** Add group and order markers ****/
+
+data table2;
+	set table1;
+	
+	length grp 8;
+	length ord 8;
+	
+	*Add group markers;
+
+	if 1 <= _N_ <= 3 then grp = 1;
+	else if 4 <= _N_ <= 6 then grp = 2;
+	else if 7 <= _N_ <= 9 then grp = 3;
+	else if 10 <= _N_ <= 14 then grp = 4;
+	else if 15 <= _N_ <= 18 then grp = 5;
+	else if _N_ = 19 then grp = 6;
+	else if _N_ = 20 then grp = 7;
+	else if _N_ = 21 then grp = 8;
+	
+	*Add order markers;
+	if 1 <= _N_ <= 10 then ord = 0;
+	else if _N_ in (11, 15, 19, 20, 21) then ord = 1;
+
+	else if (12 <= _N_ <= 14) or (16 <= _N_ <= 18) then ord = 2;
+
+	
+run;
+
+/*** start of macro for applying spaces - needed to maintain the table format - before applying
+the compute line for this was adding spaces where they shouldnt be ***/
+
+
+%macro shell (dsn, ordnum, grpnum);
+data &dsn. ;
+	ORD = &ordnum. ;
+	GRP = &grpnum. ;
+run;
+
+
+%mend shell ;
+
+%shell(dsn = shell1, ordnum = 0.1, grpnum = 0.1 ) ;
+%shell(dsn = shell2, ordnum = 0.1, grpnum = 1.1 ) ;
+%shell(dsn = shell3, ordnum = 0.1, grpnum = 2.1 ) ;
+%shell(dsn = shell4, ordnum = 0.1, grpnum = 3.1 ) ;
+
+%shell(dsn = shell6, ordnum = 1.1, grpnum = 5.1 ) ;
+%shell(dsn = shell7, ordnum = 1.1, grpnum = 6.1 ) ;
+%shell(dsn = shell8, ordnum = 1.1, grpnum = 7.1 ) ;
+%shell(dsn = shell9, ordnum = 1.1, grpnum = 8.1 ) ;
+
+
+	
+
+data join;
+	set shell1 shell2 shell3 shell4 shell6 shell7 shell8 shell9 table2;
+run;
+
+proc sort data = join;
+	by GRP ORD;
+run;
+
+/*** end of macro ***/	
+
+
+/**** PROC REPORT ****/
+
+ods listing close;  
+ods pdf file ="/home/dennes02/Project 3/Tables/dennes02_ADSL_s002_MSAB.pdf";  
+ods rtf file = "/home/dennes02/Project 3/Tables/dennes02_ADSL_s002_MSAB.rtf";
+
+proc report data = join missing headline headskip split = "|" style(report) = {just=left} spacing=1
+	nowd style(header)=[font_face='Times New Roman' font_size=10pt] 
+	style(column)=[font_face='Times New Roman' font_size=10pt];
+options orientation = landscape;
+
+title1 font='Times New Roman' height=9pt bold j=left "Table XXXXXXX";
+title2 font='Times New Roman' height=9pt bold j=left "Treatment Protocol XXXXXXXX";
+title3 font='Times New Roman' height=9pt bold j=left "Subject Evaluation Groups";
+footnote1 font='Times New Roman' height=9pt j=left "N is Number of Subjects Randomized. Percentages are based on the number of subjects Randomized.";
+footnote2 font='Times New Roman' height=9pt j=left "[1]Subjects in Safety Population. Percentages are based on the number of subjects in Safety Population.";
+footnote3 font='Times New Roman' height=9pt j=left "Treatment Period is planned for 16 weeks and Safety Follow-Up period is planned for 24 weeks.";
+footnote4 font='Times New Roman' height=9pt j=left "Safety population consists of all subjects treated with XX study medication. ITT population consists of all randomized subjects who received at least one dose.";
+footnote5 font='Times New Roman' height=9pt j=left "'Other Screened but not Randomized' displays subjects who were screened but not randomized for a reason not related to a specific eligibility criterion.";
+footnote6 font='Times New Roman' height=9pt j=left "XXXXXXXXXXXXXXXXXX"; 
+column Summary ("TRTA | (N=&trt1tot)"  (TRTA_fmt)) 
+				("TRTB | (N=&trt2tot)" (TRT1_fmt)) 
+				("TRT | (N=&trt3tot)" (TRT2_fmt)) 
+				("Total | (N=&total)" (total_fmt)) grp ord;
+	
+	define Summary/display " "					style(column)=[width=2in];
+	define TRTA_fmt/display "n  (%)"			style(column)=[width=1in just=c] style(header)=[just=c];
+	define TRT1_fmt/display "n  (%)"			style(column)=[width=1in just=c] style(header)=[just=c];
+	define TRT2_fmt/display "n  (%)"			style(column)=[width=1in just=c] style(header)=[just=c];
+	define total_fmt/display "n  (%)"			style(column)=[width=1in just=c] style(header)=[just=c];
+	define grp / order order = internal noprint;
+	define ord / order order = internal noprint;
+
+	compute Summary;
+		if index(Summary, 'Treatment') or index(Summary, 'Study') then
+			call define('Summary', 'style', 'style = {leftmargin = 0.25in}');
+		else if index(Summary, 'Follow-Up') then
+			call define('Summary', 'style', 'style = {leftmargin = 0.45in}');
+
+	endcomp;
+	
+run;
+
+ods pdf close;
+ods rtf close;
+ods listing;
