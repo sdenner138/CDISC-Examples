@@ -1,0 +1,655 @@
+
+/* Define Libraries */
+libname XXXXXXXXXXXXXXXX access = readonly;
+libname XXXXXXXXXXXXXXXX access= readonly;
+libname XXXXXXXXXXXXXXXX;
+libname XXXXXXXXXXXXXXXX access = readonly;
+libname XXXXXXXXXXXXXXXX;
+
+/* Clean working directory */
+/* proc datasets lib = work kill memtype = data nowarn; */
+/* run; */
+
+/*********** DM DERIVED AND DIRECT MOVES *************/
+
+data dmvars;
+	
+	attrib STUDYID label = 'Study Identifier'
+			USUBJID label = 'Unique Subject Identifier'
+			SUBJID label = 'Subject Identifier for the Study'
+			SITEID label = 'Study Site Identifier'
+			AGE label = 'Age'
+			AGEU label = 'Age Units'
+			AGEGR1 label = 'Pooled Age Group 1' length = $100 /*SET LENGTHS TO STOP TRUNCATION*/
+			AGEGR1N label = 'Pooled Age Group (N)' length  = 8
+			AGEGR2 label = 'Pooled Age Group 2' length = $100
+			AGEGR2N label = 'Pooled Age Group 2 (N)' length = 8
+			AAGE label = 'Analysis Age'
+			AAGEU label = 'Analysis Age Unit'
+			SEX label = 'Sex'
+			SEXN label = 'Sex (N)'
+			ETHNIC label = 'Ethnicity'
+			RACE label = 'Race'
+			RACEN label = 'Race (N)'
+			COUNTRY label = 'Country'
+			SAFFL label = 'Safety Population Flag'
+			DTHFL label = 'Subject Death Flag'
+			ARM label = 'Description of Planned Arm' length = $200
+			ARMCD label = 'Planned Arm Code' length = $20
+			ACTARM label = 'Description of Actual Arm' length = $200
+			ACTARMCD label = 'Actual Arm Code' length = $20
+			TRT01P label = 'Planned Treatment for Period 01' length = $200
+			TRT01A label = 'Actual Treatment for Period 01' length = $200
+			BRTHDT label = 'Date of Birth' format = DATE9.
+			BRTHDTF label = 'Date of Birth Imput. Flag'
+			DTHDT label = 'Date of Death'
+			RFSTDT label = 'Subject Reference Start Date' format = DATE9.
+			RFSTTM label = 'Subject Reference Start Time' format = TIME8.
+			RFENDT label = 'Subject Reference End Date' format = DATE9.
+			RFENTM label = 'Subject Reference End Time' format = TIME8.
+			RFENDT label = 'Subject Reference End Date' format = DATE9.
+			RFENTM label = 'Subject Reference End Time' format = TIME8.
+			RFICDT label = 'Date of Informed Consent' format = DATE9.
+			RFPENDT label = 'Date of End of Participation' format = DATE9.
+			INVID label = 'Investigator Identifier'
+			INVNAM label = 'Investigator Name'
+			DMDY label = 'Study Day of Collection'
+			DMDT label = 'Date of Demog Collection' format = DATE9.
+			;
+	set XXXXXX;	
+	
+	/*Direct Moves*/
+	
+	STUDYID = STUDYID;
+	USUBJID = USUBJID;
+	SUBJID = SUBJID;
+	SITEID = SITEID;
+	AGE = AGE;
+	AGEU = AGEU;
+	AAGEU = AGEU;
+	SEX = SEX;
+	ETHNIC = ETHNIC;
+	RACE = RACE;
+	COUNTRY = COUNTRY;
+	DTHFL = DTHFL;
+	ARM = ARM;
+	ARMCD = ARMCD;
+	INVID = INVID;
+	INVNAM = INVNAM;
+	DMDY = DMDY;
+	
+	/* If/then */
+	
+	*AGEGR1;
+	if 0 < AGE < 18 then AGEGR1 = '<18';
+		else if 18 <= AGE <= 44 then AGEGR1 = '18-44';
+		else if 45 <= AGE <= 64 then AGEGR1 = '45-64';
+		else if AGE > 64 then AGEGR1 = '>=65';
+		else if AGE = . then AGEGR1 = 'UNSPECIFIED';
+		
+	*AGEGR1N;
+	if AGEGR1 = "<18" then AGEGR1N = 1;
+		else if AGEGR1 = "18-44" then AGEGR1N = 2;
+		else if AGEGR1 = "45-64" then AGEGR1N = 3;
+		else if AGEGR1 = ">=65" then AGEGR1N = 4;
+		else if AGEGR1 = "UNSPECIFIED" then AGEGR1N = 5;
+		
+	*AGEGR2;
+	if .<AGE<18 then AGEGR2 = '<18';
+		else if 18<AGE<=44 then AGEGR2 = '18-44';
+		else if 45<=AGE<= 64 then AGEGR2 = '45-64';
+		else if 65 <= AGE <= 74 then AGEGR2 = '65-74';
+		else if AGE > 74 then AGEGR2 = '>=75';
+	
+	*AGEGR2N;
+	if AGEGR2 = "<18" then AGEGR2N = 1;
+		else if AGEGR2 = "18-44" then AGEGR2N = 2;
+		else if AGEGR2 = "45-64" then AGEGR2N = 3;
+		else if AGEGR2 = "65-74" then AGEGR2N = 4;
+		else if AGEGR2 = ">=75" then AGEGR2N = 5;
+		
+	*SEXN;
+	if SEX = 'M' then SEXN = 1;
+		else if SEX = 'F' then SEXN = 2;
+		
+	*RACEN;
+	if RACE = "WHITE" then RACEN = 1;
+		else if RACE = "BLACK OR AFRICAN AMERICAN" then RACEN = 2;
+		else if RACE = "ASIAN" then RACEN = 3;
+		else if RACE = "OTHER" then RACEN = 4;
+		else if RACE = "" then RACEN = .;
+		
+	*SAFFL;
+	if RFSTDTC NE "" then SAFFL = "Y";
+		else SAFFL = "N";
+		
+	*ACTARM;
+	if (RFSTDTC = "" and ACTARMCD not IN("NOTASSGN","SCRNFAIL")) then ACTARM = "Not Treated";
+		else ACTARM = ACTARM;
+		
+	*ACTARMCD;
+	if (RFSTDTC = "" and ACTARMCD not in ("NOTASSGN","SCRNFAIL")) then ACTARMCD = "NOTTRT";
+		else ACTARMCD = ACTARMCD;
+	
+	*TRT01P;
+	if ARM in('Screen Failure', 'Not Assigned') then TRT01P = "";
+		else TRT01P = ARM;
+		
+	*TRT01A;
+	if ACTARM in('Screen Failure', 'Not Assigned', 'Not Treated') then TRT01A = "";
+		else TRT01A = ACTARM;
+
+	*DTHDT - only three instances not missing, none are partial;
+	if DTHDTC ne "" then DTHDT = input(DTHDTC, IS8601DA.);
+		
+	/* DERIVED */
+	
+	*AAGE;	
+	AAGE = int((input(DMDTC, YYMMDD10.) - input(BRTHDTC, YYMMDD10.)+1)/365.25);
+	
+	*BRTHDT - proc freq showed no partial dates;
+	BRTHDT = input(BRTHDTC, IS8601DA.);
+	
+	*BRTHDTF - since no imputation, set to missing;
+	BRTHDTF = "";
+	
+	*RFSTDT - take first 10 characters from string, put into new variable, convert variable to date9.;
+	if not missing(RFSTDTC) then 
+		RFSDATE = substr(RFSTDTC, 1,10);
+		RFSTDT = input(RFSDATE, YYMMDD10.);
+	drop RFSDATE;
+	
+	*RFSTTM - take last 8 characters from string, put into new variable, convert to time8.;
+	if not missing(RFSTDTC) then 
+		RFSTIME = substr(RFSTDTC, 12, 8);
+		RFSTTM = input(RFSTIME, TIME8.);
+	drop RFSTIME;
+	
+	*RFENDT;
+	if not missing(RFENDTC) then 
+		RFENDATE = substr(RFENDTC, 1, 10);
+		RFENDT = input(RFENDATE, YYMMDD10.);
+	drop RFENDATE;
+	
+	*RFENTM;
+	if not missing(RFENDTC) then
+		RFENTIME = substr(RFENDTC, 12, 8);
+		RFENTM = input(RFENTIME, TIME8.);
+	drop RFENTIME;
+	
+	*RFICDT;
+	if not missing(RFICDTC) then
+		RFICDATE = substr(RFICDTC, 1, 10);
+		RFICDT = input(RFICDATE, YYMMDD10.);
+	drop RFICDATE;
+	
+	*RFPENDT;
+	if not missing(RFPENDTC) then
+		RFPENDT = input(RFPENDTC, YYMMDD10.);
+	
+	*DMDT;
+	if not missing(DMDTC) then
+		DMDT = input(DMDTC, YYMMDD10.);
+	
+	/*KEEP STATEMENT*/
+	keep STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT;
+run;
+
+
+
+/********* SUPPDM AND DM VARIABLES ***********/
+
+* Use proc transpose to derive variables with QVAL and QNAM;
+
+proc transpose data = XXXX out = XXXX_(drop = _name_ _label_);
+	by STUDYID USUBJID IDVARVAL;
+	id QNAM; *becomes column name;
+	var QVAL; *becomes rows;
+run;
+
+data dmmerge;
+	merge dmvars(in = A) suppdm_(in = B);
+	by USUBJID;
+run;
+
+/*Create SUPPDM Variables within the DM variables dataset*/
+
+data dmmerge1;
+	set dmmerge;
+	attrib RACEOTH label = "Specify Other Race"
+			DMPROTID label = "Protocol ID"
+			DMCENTER label = "Center ID"
+			RACEGR1 label = "Pooled Race Group 1" length = $100
+			RACEGR1N label = "Pooled Race Group 1 (N)"
+			ARACE label = 'Analysis Race'
+		;
+
+*instead of qnam, use raceoth;
+
+	/* Direct Moves */
+	
+	RACEOTH = RACEOTH;
+	DMPROTID = DMPROTID;
+	DMCENTER = DMCENTER;
+	
+	/* Derivations */
+	
+	*RACEGR1;
+	if RACE = "WHITE" then RACEGR1 = "WHITE";
+		else if RACE = "BLACK OR AFRICAN AMERICAN" then RACEGR1 = "BLACK";
+		else if RACE = "ASIAN" then RACEGR1 = "ASIAN";
+		else if RACEOTH = "HISPANIC" or ETHNIC = "HISPANIC OR LATINO"
+			then RACEGR1 = "HISPANIC";
+		else if RACE = "" then RACEGR1 = "UNSPECIFIED";
+		
+	*RACEGR1N;
+	if RACEGR1 = "WHITE" then RACEGR1N = 1;
+			else if RACEGR1 = "BLACK" then RACEGR1N = 2;
+			else if RACEGR1 = "ASIAN" then RACEGR1N = 3;
+			else if RACEGR1 = "HISPANIC" then RACEGR1N = 4;
+			else if RACEGR1 = "UNSPECIFIED" then RACEGR1N = 999;
+			
+	*ARACE;
+	if RACE ne "" then ARACE = RACE;
+			else if RACEOTH ne "" then ARACE = "OTHER";
+			else ARACE = "UNKNOWN";
+	
+	keep STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE;
+
+run;
+
+
+/************** EX VARIABLES ********************/
+
+*min of EXSTDTC;
+proc sql;
+	create table minfirsttrt as 
+		select USUBJID, min(EXSTDTC) as MIN_EXSTDTC
+		from sdtm.ex
+		group by USUBJID;
+quit;
+
+*max of EXENDTC;
+proc sql;
+	create table maxlasttrt as 
+		select USUBJID, max(EXENDTC) as MAX_EXENDTC
+		from sdtm.ex
+		group by USUBJID;
+quit;
+
+*join minfirsttrt & maxlasttrt & merge with EX;
+
+proc sort data = minfirsttrt out = min1trtsort nodupkey dupout = test;
+	by USUBJID;
+run;
+
+proc sort data = maxlasttrt out = maxlasttrtsort nodupkey dupout = test;
+	by USUBJID;
+run;
+
+proc sort data = XXXX out = exsort nodupkey dupout = test;
+	by USUBJID;
+run;
+
+proc sql;
+	create table minmax as 
+		select A.*, B.MIN_EXSTDTC, C.MAX_EXENDTC
+		from exsort as A
+		inner join min1trtsort as B 
+			on A.USUBJID = B.USUBJID
+		inner join maxlasttrtsort as C 
+			on A.USUBJID = C.USUBJID;
+quit;
+
+data EXVARS;
+	set MINMAX;
+	attrib TRTSDT label = 'Date of First Exposure to Treatment' format = DATE9.
+			TRTSTM label = 'Time of First Exposure to Treatment' format = TIME8.
+			TRTEDT label = 'Date of Last Exposure to Treatment' format = DATE9.
+			TRTETM label = 'Time of Last Exposure to Treatment' format = TIME8.
+			TR01SDTM label = 'Datetime of First Exposure in Period 01' format = DATETIME20.
+			TR01SDT label = 'Date of First Exposure in Period 01' format = DATE9.
+			TR01STM label = 'Time of First Exposure in Period 01' format = TIME8.
+			TR01EDTM label = 'Datetime of Last Exposure in Period 01' format = DATETIME20.
+			TR01EDT label = 'Date of Last Exposure in Period 01' format = DATE9.
+			TR01ETM label = 'Time of Last Exposure in Period 01' format = TIME8.
+	;
+	
+	*TRTSDT;
+	if not missing(MIN_EXSTDTC) then
+		TRTSDT0 = substr(MIN_EXSTDTC, 1, 10);
+		TRTSDT = input(TRTSDT0, YYMMDD10.);
+	drop TRTSDT0;
+	
+	*TRTSTM;
+	if not missing(MIN_EXSTDTC) then 
+		TRTSTM0 = substr(MIN_EXSTDTC, 12, 8);
+		TRTSTM = input(TRTSTM0, TIME8.);
+	drop TRTSTM0;
+	
+	*TRTEDT;
+	if not missing(MAX_EXENDTC) then
+		TRTEDT0 = substr(MAX_EXENDTC, 1, 10);
+		TRTEDT = input(TRTEDT0, YYMMDD10.);
+	drop TRTEDT0;
+	
+	*TRTETM;
+	if not missing(MAX_EXENDTC) then 
+		TRTETM0 = substr(MAX_EXENDTC, 12, 8);
+		TRTETM = input(TRTETM0, TIME8.);
+	drop TRTETM0;	
+	
+	*TR01SDTM;
+	if not missing(EXSTDTC) then 
+		TR01SDTM = input(MIN_EXSTDTC, E8601DT.);
+		
+	*TR01SDT;
+	if not missing(EXSTDTC) then 
+		TR01SDT = TRTSDT;
+	
+	*TR01STM;
+	if not missing(EXSTDTC) then
+		TR01STM = TRTSTM;
+	
+	*TR01EDTM;
+	if not missing(EXENDTC) then 
+		TR01EDTM = input(MAX_EXENDTC, e8601dt.);
+	
+	*TR01EDT;
+	if not missing(EXENDTC) then 
+		TR01EDT = TRTEDT;
+	
+	*TR01ETM;
+	if not missing(EXENDTC) then 
+		TR01ETM = TRTETM;
+	
+	keep USUBJID TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM;
+	
+run;
+
+
+/* Merge DMMERGE1 and EXVARS */
+
+data dmex;
+	merge dmmerge1(in = A) exvars(in = B);
+	by USUBJID;
+run;
+
+proc sort data = dmex out = dmexsort;
+	by USUBJID;
+run;
+
+/************** DS & SUPPDS VARIABLES ***************/
+
+* Create a copy of DS dataset and keep only variables required for derivation;
+data ds0;
+	set XXXX;
+	format ;
+	informat ;
+	keep DSDECOD USUBJID DSCAT DSSTDTC;
+run;
+
+*RANDFL;
+proc sql;
+	create table randfl0 as
+		select USUBJID,
+			max(case when DSDECOD = "RANDOMIZED" then "Y"
+			else "N"
+			end) as RANDFL
+		from ds0
+		group by USUBJID;
+quit;
+
+proc sort data = randfl0 out = randfl0sort;
+	by USUBJID;
+run;
+
+data dmexds1;
+	merge randfl0sort(in = A) dmexsort(in = B);
+	by USUBJID;
+run;
+
+* Derive ITTFL;
+data dmexds2;
+	set dmexds1;
+	attrib RANDFL label = "Randomized Population Flag"
+			ITTFL label = "Intent-To-Treat Population Flag"
+	;
+	
+	/* If/Then */
+	
+	*ITTFL;
+	if (RANDFL = "Y" and SAFFL = "Y") then ITTFL = "Y";
+		else ITTFL = "N";
+run;
+
+proc sort data = dmexds2 out = dsdmex_sort_ (keep = STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE
+		TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM RANDFL ITTFL);
+	by USUBJID;
+run;
+
+* Load "Per Protocol Population" Sheet;
+
+options validvarname = v7;
+proc import 
+	datafile = "XXXXXXXXXXXXXX"
+	dbms = xlsx
+	out = work.ppp
+	replace;
+	getnames = yes;
+	range = "Per Protocol Population$A4:D89";
+run;
+
+data _ppp;
+	attrib STUDYID length = $8 label = "Study Identifier"
+			USUBJID length = $22 label = "Unique Subject Identifier"
+			SUBJECT_ID length = $8 format = $9. informat = $10. label = "Subject Identifier for the Study"
+			CENTER_ID length = $4 label = "Study Site Identifier"
+			PD_CATEGORY length = $19 format = $19. informat = $19.
+			PD_SUB_CATEGORY length = $135 format = $135. informat = $135.
+			;
+	set ppp;
+	
+	*STUDYID;
+	STUDYID = "XXXXXXX";
+	
+	*SITEID;
+	SITEID = CENTER_ID;
+	
+	*SUBJID;
+	SUBJID = SUBJECT_ID;
+	
+	*PD_CAT;
+	PD_CAT = PD_CATEGORY;
+	
+	*PD_SUBCAT;
+	PD_SUBCAT = PD_SUB_CATEGORY;
+	
+	*USUBJID;
+	USUBJID = catx(" ", STUDYID, SITEID, SUBJID);
+	
+	keep STUDYID USUBJID SITEID SUBJID PD_CAT PD_SUBCAT;
+run;
+
+
+* Sort by USUBJID and retain only USUBJID;
+proc sort data = _ppp (keep = USUBJID) out = pppsort nodupkey dupout = ppptest;
+	by USUBJID;
+run;
+
+proc sort data = dsdmex_sort_ out = dsdmex_sort;
+	by USUBJID;
+run;
+
+proc sql;
+	create table dmexds_PPROTFL as
+	select a.*,
+		case 
+			when a.ITTFL = "N" then "N"
+			when a.ITTFL = "Y" and b.USUBJID is not null then "N"
+			when a.ITTFL = "Y" and b.USUBJID is null then "Y"
+			else ""
+		end as PPROTFL
+	from dsdmex_sort as a 
+	left join pppsort as b 
+	on a.USUBJID = b.USUBJID;
+quit;
+
+
+proc sort data = dmexds_PPROTFL out = pprotfl_sort (keep = STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE
+		TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM RANDFL ITTFL PPROTFL);
+	by USUBJID;
+run;
+
+*** Merge DS and SUPPDS;
+
+data suppds;
+	set sdtm.suppds;
+run;
+
+proc transpose data=suppds out=suppds_(drop=_name_ _label_);
+	by STUDYID USUBJID IDVARVAL;
+	id QNAM; *becomes column name;
+	var QVAL; *becomes rows;
+run;
+
+*Rename IDVARVAL to DSSEQ;
+data suppds1;
+	attrib DSSEQ length = 8;
+	set suppds_;
+	
+	*rename IDVARVAL to DSSEQ;
+	DSSEQ = IDVARVAL;
+	
+	drop IDVARVAL;
+run;
+
+data suppds1;
+	merge suppds1(in = A) sdtm.ds(in = B);
+	by USUBJID STUDYID DSSEQ;
+run;
+
+* COMPFL;
+data suppds2(keep = USUBJID COMPLFL COMPLDT) suppds3(keep = USUBJID RANDDT RANDNO)
+     suppds4(keep = USUBJID EOSDCDT EOSDCRS) suppds5(keep = USUBJID EOTDCDT EOTDCRS);
+     
+	attrib COMPLFL label = "Completers Population Flag"
+			COMPLDT label = "Date of Completion/Withdrawal" format = date9.
+			RANDDT label = "Date of Randomization" format = date9.
+			EOSDCDT label = "End of Study Date" format = date9.
+			EOSDCRS label = "End of Study Reason"
+			EOTDCDT label = "End of Treatment Date" format = date9.
+			EOTDCRS label = "End of Treatment Reason"
+	;
+	set suppds1;
+	
+	*Derive COMPFL & COMPLDT;
+	if (DSCAT = "DISPOSITION EVENT" and DSPHASE = "STUDY"
+		and DSDECOD = "COMPLETED") then do;
+			COMPLFL = "Y";
+			COMPLDT = input(DSSTDTC, YYMMDD10.);
+		end;
+	
+	*Keep only non-missing records for easy merging;
+	if not missing(COMPLFL) then output suppds2;
+	
+	*RANDDT;
+	if DSDECOD = "RANDOMIZED" then do;
+		RANDDT = input(DSSTDTC, YYMMDD10.);
+	
+	*RANDNO;
+		if DSCAT = "PROTOCOL MILESTONE" and DSDECOD = "RANDOMIZED" then
+			RANDNO = DSREFID;
+			output suppds3;
+	end;
+	
+	*EOSDCDT;
+	if DSPHASE = "STUDY" then do;
+		if DSSTDTC ne "" then EOSDCDT = input(DSSTDTC, YYMMDD10.);
+		else if DSDTC ne "" then EOSDCDT = input(DSDTC, YYMMDD10.);
+		
+	*EOSDCRS; 
+		EOSDCRS = DSDECOD;
+		output suppds4;
+	end;	
+	
+	*EOTDCDT;
+	if DSPHASE = "TREATMENT" then do;
+		if DSSTDTC NE "" then EOTDCDT = input(DSSTDTC, yymmdd10.);
+		else if DSDTC NE "" then EOTDCDT = input(DSDTC, yymmdd10.);
+		
+	*EOTDCRS; 
+		EOTDCRS = DSDECOD;
+		output suppds5;
+	end;
+	
+run;
+
+** Merge;
+
+data adsl;
+	merge pprotfl_sort(in = A) suppds2(in = B) suppds3(in = C)
+			suppds4(in = D) suppds5(in = E);
+	by USUBJID;
+	
+	*Finish COMPLFL;
+	if missing(COMPLFL) then 
+		COMPLFL = "N";
+run;
+
+* Sort production dataset;
+
+proc sort data = adsl out = adsl_sort (keep = STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE
+		TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM RANDFL ITTFL PPROTFL
+		COMPLFL COMPLDT RANDDT RANDNO EOSDCDT EOSDCRS EOTDCDT EOTDCRS);
+	by USUBJID;
+run;
+
+
+/************** Cleaning the final Dataset *********************/
+
+data adsl_final(label = "Subject-Level Analysis Dataset");
+	attrib RACEGR1 length = $100
+			ARACE length = $200
+			PPROTFL label = "Per-Protocol Population Flag"
+			RANDNO label = "Randomization Number"
+			EOSDCRS length = $100
+			EOTDCRS length = $100
+			DTHDT format = DATE9.
+	;
+	set adsl_sort;
+run;
+
+
+/************** Proc Compare *******************/
+
+proc sort data = adsl_final out = adsl_final_sort (keep = STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE
+		TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM RANDFL ITTFL PPROTFL
+		COMPLFL COMPLDT RANDDT RANDNO EOSDCDT EOSDCRS EOTDCDT EOTDCRS);
+	by USUBJID;
+run;
+
+proc sort data = XXXX out = adslsort8 (keep = STUDYID USUBJID SUBJID SITEID AGE AGEU AGEGR1 AGEGR1N AGEGR2 AGEGR2N AAGE AAGEU SEX SEXN ETHNIC RACE
+		RACEN COUNTRY SAFFL DTHFL ARM ARMCD ACTARM ACTARMCD TRT01P TRT01A BRTHDT BRTHDTF DTHDT RFSTDT RFSTTM
+		RFENDT RFENTM RFENDT RFENTM RFICDT RFPENDT INVID INVNAM DMDY DMDT RACEOTH RACEGR1 RACEGR1N DMPROTID DMCENTER ARACE
+		TRTSDT TRTSTM TRTEDT TRTETM TR01SDTM TR01SDT TR01STM TR01EDTM TR01EDT TR01ETM RANDFL ITTFL PPROTFL
+		COMPLFL COMPLDT RANDDT RANDNO EOSDCDT EOSDCRS EOTDCDT EOTDCRS);
+	by USUBJID;
+run;
+
+proc compare base = adslsort8 compare = adsl_final_sort listobs listvar listall
+			out = compFINAL_ADSL outnoeq outcomp outbase;
+			id USUBJID;
+RUN;
